@@ -19,6 +19,7 @@ import { ElemID, ObjectType, BuiltinTypes, CORE_ANNOTATIONS,
 import { types, values } from '@salto-io/lowerdash'
 import { findDuplicates } from './validation_utils'
 import { getConfigWithDefault, TypeConfig, TypeDefaultsConfig } from './shared'
+import { FIELD_REFERENCE_PREFIX } from '../references/referenced_instace_utils'
 
 export const DATA_FIELD_ENTIRE_OBJECT = '.'
 
@@ -184,6 +185,20 @@ export const validateTransoformationConfig = (
     }
   }
 
+  const validateIdFieldsConfig = (
+    idFields: string[],
+    typeName: string | undefined
+  ): void => {
+    idFields.forEach(fieldName => {
+      const symbolCount = (fieldName.match(/&/g) || []).length
+      if ((symbolCount > 1)
+      || (symbolCount === 1 && !fieldName.startsWith(FIELD_REFERENCE_PREFIX))) {
+        const typeNameError = typeName !== undefined ? `of type ${typeName} ` : ''
+        throw new Error(`${fieldName} field name ${typeNameError}in idFields config is invalid`)
+      }
+    })
+  }
+
   findNestedFieldDups(
     'fieldTypeOverrides',
     defaultConfig.fieldTypeOverrides,
@@ -214,6 +229,13 @@ export const validateTransoformationConfig = (
   if (validateIsSingletonTypes.length > 0) {
     throw new Error(`Singleton types should not have dataField or fileNameFields set, misconfiguration found for the following types: ${validateIsSingletonTypes.toString()}`)
   }
+
+  validateIdFieldsConfig(defaultConfig.idFields, undefined)
+  Object.entries(configMap).forEach(([type, tansformation]) => {
+    if (tansformation.idFields !== undefined) {
+      validateIdFieldsConfig(tansformation.idFields, type)
+    }
+  })
 }
 
 export const getTypeTransformationConfig = (

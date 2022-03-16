@@ -13,17 +13,17 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-export { neighborContextGetter, ContextFunc, ContextValueMapperFunc } from './context'
-export { addReferences, replaceReferenceValues, generateLookupFunc } from './field_references'
-export {
-  ReferenceSerializationStrategy,
-  ReferenceSerializationStrategyName,
-  ReferenceSerializationStrategyLookup,
-  FieldReferenceDefinition,
-  FieldReferenceResolver,
-  ReferenceResolverFinder,
-  ReferenceTargetDefinition,
-  ExtendedReferenceTargetDefinition,
-  LookupFunc,
-} from './reference_mapping'
-export { addReferencesToInstanceNames } from './referenced_instance_name'
+
+import _ from 'lodash'
+
+export const FIELD_REFERENCE_PREFIX = '&'
+
+export const isReferencedIdField = (
+  idField: string
+): boolean => idField.startsWith(FIELD_REFERENCE_PREFIX)
+
+export const dereferenceFieldName = (
+  fieldName: string
+): string => (isReferencedIdField(fieldName)
+  ? _.trimStart(fieldName, FIELD_REFERENCE_PREFIX)
+  : fieldName)

@@ -34,6 +34,7 @@ import createChangeValidator from './change_validator'
 import { paginate } from './client/pagination'
 import { getChangeGroupIds } from './group_change'
 import fieldReferencesFilter, { lookupFunc } from './filters/field_references'
+import idFieldsReferencesFilter from './filters/referenced_id_fields'
 import unorderedListsFilter from './filters/unordered_lists'
 import viewFilter from './filters/view'
 import workspaceFilter from './filters/workspace'
@@ -95,6 +96,8 @@ export const DEFAULT_FILTERS = [
   // unorderedListsFilter should run after fieldReferencesFilter
   unorderedListsFilter,
   serviceUrlFilter,
+  // idFieldsReferencesFilter should run after fieldReferencesFilter
+  idFieldsReferencesFilter,
   // defaultDeployFilter should be last!
   defaultDeployFilter,
 ]

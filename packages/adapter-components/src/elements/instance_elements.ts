@@ -23,6 +23,7 @@ import { logger } from '@salto-io/logging'
 import { RECORDS_PATH } from './constants'
 import { TransformationConfig, TransformationDefaultConfig, getConfigWithDefault,
   RecurseIntoCondition, isRecurseIntoConditionByField, AdapterApiConfig } from '../config'
+import { dereferenceFieldName } from '../references/referenced_instace_utils'
 
 const log = logger(module)
 
@@ -40,15 +41,56 @@ export type InstanceCreationParams = {
   getElemIdFunc?: ElemIdGetter
 }
 
+export const joinInstanceNameParts = (
+  nameParts: string[],
+  defaultName: string | undefined,
+): string | undefined => (nameParts.every(part => part !== undefined && part !== '') ? nameParts.map(String).join('_') : defaultName)
+
 export const getInstanceName = (
   instanceValues: Values,
   idFields: string[],
 ): string | undefined => {
-  const nameParts = idFields.map(field => _.get(instanceValues, field))
+  const nameParts = idFields
+    .map(fieldName => _.get(instanceValues, dereferenceFieldName(fieldName)))
   if (nameParts.includes(undefined)) {
     log.warn(`could not find id for entry - expected id fields ${idFields}, available fields ${Object.keys(instanceValues)}`)
   }
-  return nameParts.every(part => part !== undefined && part !== '') ? nameParts.map(String).join('_') : undefined
+  return joinInstanceNameParts(nameParts, undefined)
+}
+
+export const getInstanceFilePath = ({
+  fileNameFields,
+  entry,
+  naclName,
+  typeName,
+  isSettingType,
+  adapterName,
+}: {
+  fileNameFields: string[] | undefined
+  entry: Values
+  naclName: string
+  typeName: string
+  isSettingType: boolean
+  adapterName: string
+}): string[] => {
+  const fileNameParts = (fileNameFields !== undefined
+    ? fileNameFields.map(field => _.get(entry, field))
+    : undefined)
+  const fileName = ((fileNameParts?.every(p => _.isString(p) || _.isNumber(p))
+    ? fileNameParts.join('_')
+    : undefined))
+  return isSettingType
+    ? [
+      adapterName,
+      RECORDS_PATH,
+      pathNaclCase(typeName),
+    ]
+    : [
+      adapterName,
+      RECORDS_PATH,
+      pathNaclCase(typeName),
+      fileName ? pathNaclCase(naclCase(fileName)) : pathNaclCase(naclName),
+    ]
 }
 
 export const generateInstanceNameFromConfig = (
@@ -120,14 +162,6 @@ export const toBasicInstance = async ({
   )
 
   const name = getInstanceName(entry, idFields) ?? defaultName
-
-  const fileNameParts = (fileNameFields !== undefined
-    ? fileNameFields.map(field => _.get(entry, field))
-    : undefined)
-  const fileName = ((fileNameParts?.every(p => _.isString(p) || _.isNumber(p))
-    ? fileNameParts.join('_')
-    : undefined))
-
   const desiredName = naclCase(
     parent && nestName ? `${parent.elemID.name}${ID_SEPARATOR}${name}` : String(name)
   )
@@ -139,18 +173,16 @@ export const toBasicInstance = async ({
       desiredName
     ).name
     : desiredName
-  const filePath = type.isSettings
-    ? [
-      adapterName,
-      RECORDS_PATH,
-      pathNaclCase(type.elemID.name),
-    ]
-    : [
-      adapterName,
-      RECORDS_PATH,
-      pathNaclCase(type.elemID.name),
-      fileName ? pathNaclCase(naclCase(fileName)) : pathNaclCase(naclName),
-    ]
+
+  const filePath = getInstanceFilePath({
+    fileNameFields,
+    entry,
+    naclName,
+    typeName: type.elemID.name,
+    isSettingType: type.isSettings,
+    adapterName,
+  })
+
   return new InstanceElement(
     type.isSettings ? ElemID.CONFIG_NAME : naclName,
     type,
