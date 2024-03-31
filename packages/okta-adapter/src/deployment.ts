@@ -30,6 +30,7 @@ import {
   createSaltoElementError,
   isSaltoError,
   SaltoError,
+  isServiceId,
 } from '@salto-io/adapter-api'
 import {
   config as configUtils,
@@ -40,8 +41,7 @@ import {
 } from '@salto-io/adapter-components'
 import { createSchemeGuard } from '@salto-io/adapter-utils'
 import { logger } from '@salto-io/logging'
-import { values, collections } from '@salto-io/lowerdash'
-import OktaClient from './client/client'
+import { values, collections, promises } from '@salto-io/lowerdash'
 import { ACTIVE_STATUS, INACTIVE_STATUS } from './constants'
 import { OktaStatusActionName, OktaSwaggerApiConfig } from './config'
 
@@ -114,7 +114,7 @@ export const isDeactivationChange = ({ before, after }: { before: string; after:
 
 export const deployStatusChange = async (
   change: Change<InstanceElement>,
-  client: OktaClient,
+  client: clientUtils.HTTPWriteClientInterface & clientUtils.HTTPReadClientInterface,
   apiDefinitions: OktaSwaggerApiConfig,
   operation: OktaStatusActionName,
 ): Promise<void> => {
@@ -137,17 +137,23 @@ export const deployStatusChange = async (
   }
 }
 
-export const assignServiceIdToAdditionChange = (
+export const assignServiceIdToAdditionChange = async (
   response: deployment.ResponseResult,
   change: AdditionChange<InstanceElement>,
-  apiDefinitions: configUtils.AdapterApiConfig,
-): void => {
+): Promise<void> => {
   if (!Array.isArray(response)) {
-    const serviceIdField =
-      apiDefinitions.types[getChangeData(change).elemID.typeName]?.transformation?.serviceIdField ?? 'id'
-    if (response?.[serviceIdField] !== undefined) {
-      getChangeData(change).value[serviceIdField] = response[serviceIdField]
-    }
+    const type = await getChangeData(change).getType()
+    const serviceIDFieldNames = Object.keys(
+      _.pickBy(
+        await promises.object.mapValuesAsync(type.fields, async f => isServiceId(await f.getType())),
+        val => val,
+      ),
+    )
+    serviceIDFieldNames.forEach(fieldName => {
+      if (response?.[fieldName] !== undefined) {
+        getChangeData(change).value[fieldName] = response[fieldName]
+      }
+    })
   } else {
     log.warn('Received unexpected response, could not assign service id to change: %o', response)
   }
@@ -158,7 +164,7 @@ export const assignServiceIdToAdditionChange = (
  */
 export const defaultDeployChange = async (
   change: Change<InstanceElement>,
-  client: OktaClient,
+  client: clientUtils.HTTPWriteClientInterface & clientUtils.HTTPReadClientInterface,
   apiDefinitions: OktaSwaggerApiConfig,
   fieldsToIgnore?: string[],
   queryParams?: Record<string, string>,
@@ -190,7 +196,7 @@ export const defaultDeployChange = async (
     })
 
     if (isAdditionChange(change)) {
-      assignServiceIdToAdditionChange(response, change, apiDefinitions)
+      await assignServiceIdToAdditionChange(response, change)
     }
     return response
   } catch (err) {
@@ -203,7 +209,7 @@ export const defaultDeployChange = async (
  */
 export const defaultDeployWithStatus = async (
   change: Change<InstanceElement>,
-  client: OktaClient,
+  client: clientUtils.HTTPWriteClientInterface & clientUtils.HTTPReadClientInterface,
   apiDefinitions: OktaSwaggerApiConfig,
   fieldsToIgnore?: string[],
   queryParams?: Record<string, string>,
@@ -283,7 +289,7 @@ const getValuesToRemove = (change: ModificationChange<InstanceElement>, fieldNam
 export const deployEdges = async (
   change: AdditionChange<InstanceElement> | ModificationChange<InstanceElement>,
   deployRequestByField: Record<string, configUtils.DeploymentRequestsByAction>,
-  client: OktaClient,
+  client: clientUtils.HTTPWriteClientInterface & clientUtils.HTTPReadClientInterface,
 ): Promise<void> => {
   const instance = getChangeData(change)
   const instanceId = instance.value.id

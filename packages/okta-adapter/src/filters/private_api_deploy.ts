@@ -34,10 +34,11 @@ const log = logger(module)
 /**
  * Deploys changes of types defined with ducktype api definitions
  */
-const filterCreator: FilterCreator = ({ adminClient, config }) => ({
+const filterCreator: FilterCreator = ({ definitions, config, oldApiDefinitions }) => ({
   name: 'privateAPIDeployFilter',
   deploy: async (changes: Change<InstanceElement>[]) => {
-    const { privateApiDefinitions } = config
+    const { privateApiDefinitions } = oldApiDefinitions
+    const adminClient = definitions.clients.options.private.httpClient
     const [relevantChanges, leftoverChanges] = _.partition(
       changes,
       change =>
@@ -81,7 +82,7 @@ const filterCreator: FilterCreator = ({ adminClient, config }) => ({
         endpointDetails: privateApiDefinitions.types[getChangeData(change).elemID.typeName]?.deployRequests,
       })
       if (isAdditionChange(change)) {
-        assignServiceIdToAdditionChange(response, change, privateApiDefinitions)
+        await assignServiceIdToAdditionChange(response, change)
       }
     })
     return { deployResult, leftoverChanges }

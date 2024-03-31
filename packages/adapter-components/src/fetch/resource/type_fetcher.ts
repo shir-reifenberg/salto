@@ -164,7 +164,7 @@ export const createTypeResourceFetcher = <ClientOptions extends string>({
             Array.isArray(first) && Array.isArray(second) ? first.concat(second) : undefined,
           ),
           context: {
-            fragments,
+            ...(_.merge({}, ...fragments.map(fragment => fragment.context))),
           },
         }))
         .mapValues(item =>

@@ -27,16 +27,13 @@ import {
   Values,
 } from '@salto-io/adapter-api'
 import { buildElementsSourceFromElements, filter } from '@salto-io/adapter-utils'
-import { logger } from '@salto-io/logging'
-import { values as lowerdashValues } from '@salto-io/lowerdash'
+import { values as lowerdashValues, types } from '@salto-io/lowerdash'
 import _ from 'lodash'
 import { AdapterFilterCreator, FilterCreator } from '../filter_utils'
 import { createUrl } from '../fetch/resource'
 import { ApiDefinitions, queryWithDefault } from '../definitions'
 import { FetchApiDefinitionsOptions, InstanceFetchApiDefinitions } from '../definitions/system/fetch'
 import { AdapterApiConfig, TransformationConfig, TypeConfig } from '../config'
-
-const log = logger(module)
 
 export const configDefToInstanceFetchApiDefinitionsForServiceUrl = (
   configDef?: TypeConfig<TransformationConfig, ActionName>,
@@ -87,10 +84,6 @@ export const serviceUrlFilterCreator: <
 ) => AdapterFilterCreator<TContext, TResult, TAdditional, TOptions> =
   baseUrl =>
   ({ definitions }) => {
-    if (definitions.fetch === undefined) {
-      log.warn('No fetch definitions were found, skipping service url filter')
-      return () => ({})
-    }
     const { instances } = definitions.fetch
     const defQuery = queryWithDefault(instances)
     return {
@@ -130,6 +123,6 @@ export const serviceUrlFilterCreatorDeprecated: <
         customizations,
       },
     },
-  } as ApiDefinitions
+  } as types.PickyRequired<ApiDefinitions,'fetch'>
   return serviceUrlFilterCreator(baseUrl)({ ...args, definitions, elementSource: buildElementsSourceFromElements([]) })
 }

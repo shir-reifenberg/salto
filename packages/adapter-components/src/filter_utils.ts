@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 import { ElemIdGetter, ReadOnlyElementsSource, SaltoError } from '@salto-io/adapter-api'
+import { types } from '@salto-io/lowerdash'
 import { filter } from '@salto-io/adapter-utils'
 import { Paginator } from './client'
 import { ElementQuery } from './fetch/query'
-import { UserConfig, ApiDefinitions, APIDefinitionsOptions, ResolveCustomNameMappingOptionsType } from './definitions'
+import { UserConfig, APIDefinitionsOptions, ResolveCustomNameMappingOptionsType, ApiDefinitions } from './definitions'
 
 export type Filter<TResult extends void | filter.FilterResult = void> = filter.Filter<TResult>
 
@@ -31,7 +32,7 @@ export type FilterOptions<
   TContext = UserConfig<ResolveCustomNameMappingOptionsType<TOptions>>,
   TAdditional = {},
 > = {
-  definitions: ApiDefinitions<TOptions>
+  definitions: types.PickyRequired<ApiDefinitions<TOptions>, 'fetch'>
   config: TContext
   getElemIdFunc?: ElemIdGetter
   fetchQuery: ElementQuery

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export { getNameMapping, createServiceIDs } from './id_utils'
+export { getNameMapping, createServiceIDs, createElemIDFunc } from './id_utils'
 export {
   getContainerForType,
   markServiceIdField,
@@ -23,3 +23,5 @@ export {
 } from './type_utils'
 export { generateInstancesWithInitialTypes } from './instance_element'
 export { generateType } from './type_element'
+// eslint-disable-next-line import/no-cycle
+export { generateOpenApiTypes } from './openAPI/types'

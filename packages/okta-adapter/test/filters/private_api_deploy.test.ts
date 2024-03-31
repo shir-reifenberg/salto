@@ -15,13 +15,21 @@
  */
 
 import { MockInterface } from '@salto-io/test-utils'
-import { ElemID, InstanceElement, ObjectType, toChange, getChangeData, isInstanceElement } from '@salto-io/adapter-api'
+import {
+  ElemID,
+  InstanceElement,
+  ObjectType,
+  toChange,
+  getChangeData,
+  isInstanceElement,
+  BuiltinTypes,
+} from '@salto-io/adapter-api'
 import { filterUtils, client as clientUtils } from '@salto-io/adapter-components'
-import { getFilterParams, mockClient } from '../utils'
+import { createDefinitions, getFilterParams, mockClient } from '../utils'
 import OktaClient from '../../src/client/client'
 import privateAPIDeployFilter from '../../src/filters/private_api_deploy'
 import { GROUP_PUSH_TYPE_NAME, OKTA } from '../../src/constants'
-import { DEFAULT_CONFIG, OktaConfig } from '../../src/config'
+import { DEFAULT_CONFIG, OktaUserConfig } from '../../src/user_config'
 
 describe('privateApiDeploymentFilter', () => {
   let mockConnection: MockInterface<clientUtils.APIConnection>
@@ -35,7 +43,10 @@ describe('privateApiDeploymentFilter', () => {
   const thirdPartyAdminAfter = thirdPartyAdminInstance.clone()
   thirdPartyAdminAfter.value.thirdPartyAdmin = true
   const change = toChange({ before: thirdPartyAdminInstance, after: thirdPartyAdminAfter })
-  const groupPushType = new ObjectType({ elemID: new ElemID(OKTA, GROUP_PUSH_TYPE_NAME) })
+  const groupPushType = new ObjectType({
+    elemID: new ElemID(OKTA, GROUP_PUSH_TYPE_NAME),
+    fields: { mappingId: { refType: BuiltinTypes.SERVICE_ID } },
+  })
   const groupPushInst = new InstanceElement('test', groupPushType, { status: 'ACTIVE', newAppGroupName: 'okta' })
   beforeEach(() => {
     jest.clearAllMocks()
@@ -46,7 +57,8 @@ describe('privateApiDeploymentFilter', () => {
 
   describe('deploy', () => {
     it('should successfully deploy private api types', async () => {
-      filter = privateAPIDeployFilter(getFilterParams({ adminClient: client })) as typeof filter
+      const definitions = createDefinitions(client)
+      filter = privateAPIDeployFilter(getFilterParams({ definitions })) as typeof filter
       mockConnection.post.mockResolvedValue({ status: 200, data: { thirdPartyAdmin: true } })
       const res = await filter.deploy([change])
       expect(res.deployResult.appliedChanges).toHaveLength(1)
@@ -57,7 +69,8 @@ describe('privateApiDeploymentFilter', () => {
       expect(afterDeploy?.value).toEqual({ thirdPartyAdmin: true })
     })
     it('should add service id to instance on addition changes', async () => {
-      filter = privateAPIDeployFilter(getFilterParams({ adminClient: client })) as typeof filter
+      const definitions = createDefinitions(client)
+      filter = privateAPIDeployFilter(getFilterParams({ definitions })) as typeof filter
       mockConnection.post.mockResolvedValue({ status: 200, data: { mappingId: 'aaa', status: 'ACTIVE' } })
       const res = await filter.deploy([toChange({ after: groupPushInst })])
       const { appliedChanges } = res.deployResult
@@ -75,9 +88,10 @@ describe('privateApiDeploymentFilter', () => {
     it('should return error for changes of private api types if usePrivateAPI disabled', async () => {
       const config = {
         ...DEFAULT_CONFIG,
-        client: undefined,
-      } as OktaConfig
-      filter = privateAPIDeployFilter(getFilterParams({ adminClient: client, config })) as typeof filter
+        client: {},
+      } as OktaUserConfig
+      const definitions = createDefinitions(client)
+      filter = privateAPIDeployFilter(getFilterParams({ definitions, config })) as typeof filter
       const res = await filter.deploy([change])
       expect(res.deployResult.errors).toHaveLength(1)
       expect(res.deployResult.errors[0]).toEqual({

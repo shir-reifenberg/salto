@@ -13,16 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { filters } from '@salto-io/adapter-components'
-import { FilterCreator } from '../filter'
 
-/**
- * Filter creators of all the common filters
- */
-const filterCreators: Record<string, FilterCreator> = {
-  hideTypes: filters.hideTypesFilterCreator(),
-  // referencedInstanceNames: filters.referencedInstanceNamesFilterCreator(), // TODOS
-  query: filters.queryFilterCreator({}),
-}
-
-export default filterCreators
+export type AdditionalAction = never
+export type ClientOptions = 'main' | 'private'
+export type PaginationOptions = 'cursorHeader' | 'cursor'
+export type OktaFetchOptions = { clientOptions: ClientOptions; paginationOptions: PaginationOptions }

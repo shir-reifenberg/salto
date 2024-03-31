@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { TransformDefinition } from '../shared'
+// import { ContextParams, ExtractionParams, TransformDefinition } from '../shared'
+import { ContextParams, TransformDefinition } from '../shared'
 
 export type DependsOnDefinition = {
   parentTypeName: string
@@ -32,8 +33,9 @@ export type Condition = ConditionByField | ConditionByContext
 
 export const isConditionByField = (condition: Condition): condition is ConditionByField => 'fromField' in condition
 
-type RecurseIntoContextParamDefinition = {
-  fromField: string // TODO replace with transformation config to align
+type RecurseIntoContextParamDefinition<TContext = ContextParams> = {
+  // fromField: string // TODO replace with transformation config to align
+  transformation: TransformDefinition<TContext, string> & { single?: true } // set single to true as transform func should return a single string
 }
 type RecurseIntoContext = {
   args: Record<string, RecurseIntoContextParamDefinition>

@@ -44,10 +44,9 @@ import {
   safeJsonStringify,
 } from '@salto-io/adapter-utils'
 import { logger } from '@salto-io/logging'
-import { config as configUtils, elements as elementsUtils } from '@salto-io/adapter-components'
+import { definitions as definitionsUtils, fetch as fetchUtils } from '@salto-io/adapter-components'
 import { collections } from '@salto-io/lowerdash'
 import { CredsLease } from '@salto-io/e2e-credentials-store'
-import { API_DEFINITIONS_CONFIG, DEFAULT_CONFIG } from '../src/config'
 import {
   ACCESS_POLICY_RULE_TYPE_NAME,
   ACCESS_POLICY_TYPE_NAME,
@@ -65,12 +64,13 @@ import {
   USER_SCHEMA_TYPE_NAME,
   USERTYPE_TYPE_NAME,
 } from '../src/constants'
+import { createFetchDefinitions } from '../src/definitions/fetch'
+import { DEFAULT_CONFIG } from '../src/user_config'
 import { Credentials } from '../src/auth'
 import { credsLease, realAdapter, Reals } from './adapter'
 import { mockDefaultValues } from './mock_elements'
 
 const { awu } = collections.asynciterable
-const { getInstanceName } = elementsUtils
 const log = logger(module)
 
 // Set long timeout as we communicate with Okta APIs
@@ -98,14 +98,17 @@ const createInstance = ({
     log.warn(`Could not find type ${typeName}, error while creating instance`)
     throw new Error(`Failed to find type ${typeName}`)
   }
-  const { idFields } = configUtils.getConfigWithDefault(
-    DEFAULT_CONFIG[API_DEFINITIONS_CONFIG].types[typeName].transformation ?? {},
-    DEFAULT_CONFIG[API_DEFINITIONS_CONFIG].typeDefaults.transformation,
-  )
-  const instName = name ?? getInstanceName(instValues, idFields, typeName)
-  const naclName = naclCase(parent ? `${parent.elemID.name}__${instName}` : String(instName))
+  const fetchDefinitions = createFetchDefinitions(DEFAULT_CONFIG)
+  const elemIDDef = definitionsUtils.queryWithDefault(fetchDefinitions.instances).query(typeName)?.element
+    ?.topLevel?.elemID
+  if (elemIDDef === undefined) {
+    log.warn(`Could not find type elemID definitions for type ${typeName}, error while creating instance`)
+    throw new Error(`Could not find type elemID definitions for type ${typeName}`)
+  }
+  const elemIDFunc = fetchUtils.element.createElemIDFunc<never>({ elemIDDef, typeID: type.elemID })
+  const elemID = elemIDFunc({ entry: instValues, defaultName: 'unnamed_0', parent })
   return new InstanceElement(
-    naclName,
+    name ? naclCase(name) : elemID,
     type,
     instValues,
     undefined,
@@ -247,7 +250,7 @@ const createInstancesForDeploy = (types: ObjectType[], testSuffix: string): Inst
       id: new ReferenceExpression(groupInstance.elemID, groupInstance),
     },
     parent: app,
-    name: groupInstance.elemID.name,
+    name: naclCase(`${app.elemID.name}__${groupInstance.elemID.name}`),
   })
   return [
     groupInstance,

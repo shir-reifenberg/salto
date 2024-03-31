@@ -55,6 +55,7 @@ type ItemExtractor = (pages: ResponseValue[]) => GeneratedItem[]
 const createExtractor = <ClientOptions extends string>(
   extractorDef: FetchRequestDefinition<ClientOptions>,
   typeName: string,
+  contexts: ContextParams[],
 ): ItemExtractor => {
   const transform = createValueTransformer(extractorDef.transformation)
   return pages =>
@@ -63,7 +64,7 @@ const createExtractor = <ClientOptions extends string>(
         transform({
           value: page,
           typeName,
-          context: extractorDef.context ?? {},
+          context: _.merge({}, ...contexts),
         }),
       ),
     )
@@ -134,7 +135,7 @@ export const getRequester = <Options extends APIDefinitionsOptions>({
     // order of precedence in case of overlaps: pagination defaults < endpoint < resource-specific request
     const mergedEndpointDef = _.merge({}, clientArgs, mergedRequestDef.endpoint)
 
-    const extractor = createExtractor(requestDef, typeName)
+    const extractor = createExtractor(requestDef, typeName, contexts)
 
     const callArgs = mergedEndpointDef.omitBody
       ? _.pick(mergedEndpointDef, ['queryArgs', 'headers'])

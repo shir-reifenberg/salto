@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { filters } from '@salto-io/adapter-components'
-import { FilterCreator } from '../filter'
+import { definitions, fetch as fetchUtils } from '@salto-io/adapter-components'
+import { ClientOptions, PaginationOptions } from '../types'
 
-/**
- * Filter creators of all the common filters
- */
-const filterCreators: Record<string, FilterCreator> = {
-  hideTypes: filters.hideTypesFilterCreator(),
-  // referencedInstanceNames: filters.referencedInstanceNamesFilterCreator(), // TODOS
-  query: filters.queryFilterCreator({}),
+const { cursorPagination, defaultPathChecker, cursorHeaderPagination } = fetchUtils.request.pagination
+
+export const PAGINATION: Record<PaginationOptions, definitions.PaginationDefinitions<ClientOptions>> = {
+  cursorHeader: {
+    funcCreator: () => cursorHeaderPagination({ pathChecker: defaultPathChecker }),
+  },
+  cursor: {
+    funcCreator: () => cursorPagination({ paginationField: 'nextMappingsPageUrl', pathChecker: defaultPathChecker }),
+  },
 }
-
-export default filterCreators
