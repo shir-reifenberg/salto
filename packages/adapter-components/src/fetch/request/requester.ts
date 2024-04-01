@@ -64,7 +64,7 @@ const createExtractor = <ClientOptions extends string>(
         transform({
           value: page,
           typeName,
-          context: _.merge({}, ...contexts),
+          context: _.merge({}, ...contexts, extractorDef.context),
         }),
       ),
     )
