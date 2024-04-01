@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { MockInterface, mockFunction } from '@salto-io/test-utils'
+import { Value } from '@salto-io/adapter-api'
 import { queryWithDefault } from '../../../src/definitions'
 import { getRequester } from '../../../src/fetch/request/requester'
 import { noPagination } from '../../../src/fetch/request/pagination'
@@ -40,7 +41,6 @@ describe('requester', () => {
         .mockResolvedValueOnce(
           Promise.resolve({
             data: {
-              nested: { b: 'b' },
               a: 'a',
             },
             status: 200,
@@ -102,7 +102,7 @@ describe('requester', () => {
         {
           typeName: 'myType',
           context: {},
-          value: { a: 'a', nested: { b: 'b' } },
+          value: { a: 'a' },
         },
       ])
       expect(
@@ -152,7 +152,7 @@ describe('requester', () => {
         requester.requestAllForResource({ callerIdentifier: { typeName: 'myType' }, contextPossibleArgs: {} }),
       ).rejects.toThrow('Endpoint [main]/ep:undefined is not marked as readonly, cannot use in fetch')
     })
-    it('should use extractor if provided', async () => {
+    it('should be able to extract values from given context', async () => {
       const requester = getRequester({
         adapterName: 'a',
         clients: {
@@ -178,17 +178,20 @@ describe('requester', () => {
         },
         requestDefQuery: queryWithDefault<FetchRequestDefinition<'main'>[], string>({
           customizations: {
-            myType: [{ endpoint: { path: '/ep' }, transformation: { root: 'nested' } },],
+            myType: [{ endpoint: { path: '/ep' } },],
           },
         }),
       })
       expect(
-        await requester.request({ typeName: 'myType', contexts: [], requestDef: { endpoint: { path: '/ep' }, transformation: { root: 'nested'}  } }),
+        await requester.request({ 
+          typeName: 'myType', 
+          contexts: [{ c: 'c' }], 
+          requestDef: { endpoint: { path: '/ep' }, transformation: { adjust: ({ value, context }) => ({ value: {...context, ...(value as Value) }}) }  } }),
       ).toEqual([
         {
           typeName: 'myType',
-          context: {},
-          value: { b: 'b' },
+          context: { c: 'c' },
+          value: { c: 'c', a: 'a' },
         },
       ])
     })
