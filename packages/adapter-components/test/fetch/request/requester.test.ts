@@ -40,6 +40,7 @@ describe('requester', () => {
         .mockResolvedValueOnce(
           Promise.resolve({
             data: {
+              nested: { b: 'b' },
               a: 'a',
             },
             status: 200,
@@ -101,7 +102,7 @@ describe('requester', () => {
         {
           typeName: 'myType',
           context: {},
-          value: { a: 'a' },
+          value: { a: 'a', nested: { b: 'b' } },
         },
       ])
       expect(
@@ -150,6 +151,46 @@ describe('requester', () => {
       await expect(() =>
         requester.requestAllForResource({ callerIdentifier: { typeName: 'myType' }, contextPossibleArgs: {} }),
       ).rejects.toThrow('Endpoint [main]/ep:undefined is not marked as readonly, cannot use in fetch')
+    })
+    it('should use extractor if provided', async () => {
+      const requester = getRequester({
+        adapterName: 'a',
+        clients: {
+          default: 'main',
+          options: {
+            main: {
+              httpClient: client,
+              endpoints: {
+                default: {
+                  get: {
+                    readonly: true,
+                  },
+                },
+                customizations: {},
+              },
+            },
+          },
+        },
+        pagination: {
+          none: {
+            funcCreator: noPagination,
+          },
+        },
+        requestDefQuery: queryWithDefault<FetchRequestDefinition<'main'>[], string>({
+          customizations: {
+            myType: [{ endpoint: { path: '/ep' }, transformation: { root: 'nested' } },],
+          },
+        }),
+      })
+      expect(
+        await requester.request({ typeName: 'myType', contexts: [], requestDef: { endpoint: { path: '/ep' }, transformation: { root: 'nested'}  } }),
+      ).toEqual([
+        {
+          typeName: 'myType',
+          context: {},
+          value: { b: 'b' },
+        },
+      ])
     })
   })
 })
