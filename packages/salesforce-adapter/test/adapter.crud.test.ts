@@ -81,8 +81,20 @@ describe('SalesforceAdapter CRUD', () => {
     getData: (fileName: string) => Promise<Values>
   }
 
+  const streamToBuffer = async (stream: Stream): Promise<Buffer> => {
+    const chunks: Buffer[] = []
+    return new Promise((resolve, reject) => {
+      stream.on('data', (chunk: Buffer) => {
+        chunks.push(chunk)
+      })
+      stream.on('end', () => {
+        resolve(Buffer.concat(chunks))
+      })
+      stream.on('error', reject)
+    })
+  }
   const getDeployedPackage = async (zipData: Buffer | string | Stream): Promise<DeployedPackage> => {
-    const zip = await JSZip.loadAsync(zipData)
+    const zip = await JSZip.loadAsync(zipData instanceof Stream ? streamToBuffer(zipData) : zipData)
     const files = {
       manifest: zip.files['unpackaged/package.xml'],
       deleteManifest: zip.files['unpackaged/destructiveChangesPost.xml'],
